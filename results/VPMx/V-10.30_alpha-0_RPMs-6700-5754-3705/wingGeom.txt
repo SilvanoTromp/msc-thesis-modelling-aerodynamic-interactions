@@ -1,0 +1,33 @@
+# Fixed-wing geometry, world coordinates (x longitudinal, y lateral, z up).
+# twist_deg is the chord line (LE->TE) below +x: positive = nose-up incidence.
+# Regenerated from LpCVTOL_AIAA-model_LBatOrigin.stl together with
+# WING_airfoils_v2/ -- do not mix with the older contours.
+#
+# REFERENCE WING: the first 4 stations (y 0.327..0.509) are the inboard extension to
+# the vehicle centreline at y=0.327, holding the root chord/twist/LE. They model the
+# wing-body CARRY-OVER lift, which the source-panel airframe cannot produce (a closed
+# source distribution has zero lift). Aspect ratio 1.36 -> 3.89. These panels sit
+# geometrically inside the fuselage; that is accepted because the body carries no
+# lift of its own, so nothing is double-counted. Delete them to get the exposed
+# panel back.
+#    y[m]      chord[m]   twist[deg]    le_x[m]     le_z[m]   airfoil
+  0.327000   0.402735   3.885007  -0.207486   0.028446  wing_airfoils/Airfoil_y0.5700.txt
+  0.387750   0.402735   3.885007  -0.207486   0.028446  wing_airfoils/Airfoil_y0.5700.txt
+  0.448500   0.402735   3.885007  -0.207486   0.028446  wing_airfoils/Airfoil_y0.5700.txt
+  0.509250   0.402735   3.885007  -0.207486   0.028446  wing_airfoils/Airfoil_y0.5700.txt
+  0.570000   0.402735   3.885007  -0.207486   0.028446  wing_airfoils/Airfoil_y0.5700.txt
+  0.600000   0.390159   4.056759  -0.194785   0.028918  wing_airfoils/Airfoil_y0.6000.txt
+  0.630000   0.378132   4.248935  -0.182083   0.029391  wing_airfoils/Airfoil_y0.6300.txt
+  0.660000   0.365915   4.452472  -0.169377   0.029827  wing_airfoils/Airfoil_y0.6600.txt
+  0.690000   0.353655   4.466505  -0.156486   0.029083  wing_airfoils/Airfoil_y0.6900.txt
+  0.720000   0.341520   4.690166  -0.143590   0.029599  wing_airfoils/Airfoil_y0.7200.txt
+  0.750000   0.329512   4.920327  -0.130693   0.030114  wing_airfoils/Airfoil_y0.7500.txt
+  0.780000   0.324173   4.835136  -0.117797   0.030629  wing_airfoils/Airfoil_y0.7800.txt
+  0.810000   0.319646   4.603397  -0.105178   0.031259  wing_airfoils/Airfoil_y0.8100.txt
+  0.840000   0.315276   4.422840  -0.092578   0.031896  wing_airfoils/Airfoil_y0.8400.txt
+  0.870000   0.310433   4.178944  -0.079535   0.032078  wing_airfoils/Airfoil_y0.8700.txt
+  0.900000   0.305595   3.954317  -0.066479   0.032403  wing_airfoils/Airfoil_y0.9000.txt
+  0.930000   0.300883   3.765066  -0.053531   0.032959  wing_airfoils/Airfoil_y0.9300.txt
+  0.960000   0.296249   3.611563  -0.040636   0.033630  wing_airfoils/Airfoil_y0.9600.txt
+  0.990000   0.291668   3.329279  -0.027822   0.033591  wing_airfoils/Airfoil_y0.9900.txt
+  1.020000   0.287099   3.026526  -0.015016   0.033494  wing_airfoils/Airfoil_y1.0200.txt
