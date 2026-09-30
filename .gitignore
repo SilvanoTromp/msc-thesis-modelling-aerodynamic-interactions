@@ -1,0 +1,8 @@
+# Virtual environment
+.venv/
+
+# PyCharm
+.idea/
+
+# Large STL file
+scripts/flightlab_input/simplified airframe.stl
