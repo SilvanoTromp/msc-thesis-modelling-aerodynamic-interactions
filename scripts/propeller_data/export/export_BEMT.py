@@ -648,7 +648,7 @@ if __name__ == "__main__":
     output_dir = (
             Path(__file__).resolve().parent.parent.parent.parent
             / "data"
-            / "bemt_input"
+            / "bemt_vpmx_input"
             / f"apc_{prop}"
     )
 
