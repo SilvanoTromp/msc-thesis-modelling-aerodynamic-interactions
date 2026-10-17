@@ -1,36 +1,45 @@
 """
-Generate a simple Cartesian point cloud for FlightLab intftabxyz.tab
+Generate a Cartesian point cloud for FLIGHTLAB intftabxyz.tab
 and visualize the interference points together with the aircraft STL.
 
-Input coordinates are in millimetres.
-Output coordinates are normalized using INTFREFLEN_FT.
+The script:
+1. Loads the previously aligned aircraft STL geometry in feet.
+2. Uses the existing FLIGHTLAB coordinate convention.
+3. Generates interference points using uniform or non-uniform X-spacing.
+4. Uses uniform spacing in the Y- and Z-directions.
+5. Normalizes the interference-point coordinates using INTFREFLEN_FT.
+6. Exports the interference points to a FLIGHTLAB-compatible .tab file.
+7. Prints the point-cloud dimensions and total number of points.
+8. Visualizes the STL, interference points, and point-cloud boundaries.
+
+The script is intended for preparation and verification of interference
+point locations used for flow-field evaluation in FLIGHTLAB.
 """
+
+from pathlib import Path
+from itertools import product, combinations
 
 import numpy as np
 import trimesh
 import matplotlib.pyplot as plt
 
-from pathlib import Path
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # ==============================================================
-# Settings
+# User settings
 # ==============================================================
 
-<<<<<<< HEAD
-STL_FILE = "simplified airframe.stl"
-=======
 STL_FILE = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "bemt_vpmx_input"
-    / "EVO-body-translated.stl"
+    Path(__file__).resolve().parent
+    / "simplified airframe_aligned.stl"
 )
->>>>>>> origin/main
+
+# Verify that the aligned STL file exists
+if not STL_FILE.is_file():
+    raise FileNotFoundError(
+        f"\nAligned STL file not found: {STL_FILE}\n"
+        "Please run 'generate_panelgeom.py' first to generate the rotated and translated STL geometry."
+    )
 
 OUTPUT_FILE = (
     Path(__file__).resolve().parent.parent.parent
@@ -39,14 +48,13 @@ OUTPUT_FILE = (
     / "intftabxyz.tab"
 )
 
+# ==============================================================
+# Point-cloud settings
+# ==============================================================
+
 # Point-cloud boundaries [mm]
-<<<<<<< HEAD
-X_MIN = 668
-X_MAX = 669
-=======
 X_MIN = -500
 X_MAX = 1500
->>>>>>> origin/main
 
 Y_MIN = -698
 Y_MAX = 248
@@ -54,45 +62,40 @@ Y_MAX = 248
 Z_MIN = -200
 Z_MAX = 200
 
-<<<<<<< HEAD
-# Uniform spacing in all directions [mm]
+# X-spacing mode: "uniform" or "nonuniform"
+X_SPACING_MODE = "nonuniform"
+
+# Uniform X-spacing [mm]
 DX = 2
-=======
+
 # Region of interest [mm]
 X_CENTER = 714.7       # 50 mm downstream of pusher propeller hub
 X_FINE_RADIUS = 24     # fine spacing within +/- 24 mm
 
-# Non-uniform x-spacing [mm]
+# Non-uniform X-spacing [mm]
 DX_MIN = 2
 DX_MAX = 100
 DX_GROWTH = 1.4
 
-# Uniform yz-spacing [mm]
+# Uniform YZ-spacing [mm]
 DY = 2
 DZ = 2
->>>>>>> origin/main
+
+# ==============================================================
+# Conversion factors
+# ==============================================================
 
 # Conversion factor
 MM_TO_FT = 1.0 / 304.8
 
-# FlightLab normalization reference length (mean chord)
+# FLIGHTLAB normalization reference length (mean chord)
 INTFREFLEN_MM = 312.267658
 INTFREFLEN_FT = INTFREFLEN_MM * MM_TO_FT
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # ==============================================================
-# Create coordinates
+# Generate X-coordinates
 # ==============================================================
 
-<<<<<<< HEAD
-x_values = np.arange(X_MIN, X_MAX + 0.5 * DX, DX)
-y_values = np.arange(Y_MIN, Y_MAX + 0.5 * DX, DX)
-z_values = np.arange(Z_MIN, Z_MAX + 0.5 * DX, DX)
-
-=======
 def generate_x_coordinates(
     x_min,
     x_max,
@@ -102,7 +105,16 @@ def generate_x_coordinates(
     dx_max,
     growth_factor
 ):
-    """Generate smoothly stretched x-planes around a fine-resolution region."""
+    """Generate smoothly stretched X-planes around a fine-resolution region."""
+
+    if not x_min < x_center < x_max:
+        raise ValueError("X_CENTER must lie between X_MIN and X_MAX.")
+
+    if dx_min <= 0 or dx_max < dx_min:
+        raise ValueError("Invalid minimum or maximum X-spacing.")
+
+    if growth_factor <= 1:
+        raise ValueError("DX_GROWTH must be greater than 1.")
 
     def generate_direction(boundary, direction):
 
@@ -159,39 +171,80 @@ def generate_x_coordinates(
 
     return coordinates
 
-x_values = generate_x_coordinates(
-    X_MIN,
-    X_MAX,
-    X_CENTER,
-    X_FINE_RADIUS,
-    DX_MIN,
-    DX_MAX,
-    DX_GROWTH
+
+# ==============================================================
+# Create coordinates
+# ==============================================================
+
+if X_SPACING_MODE == "uniform":
+
+    x_values = np.arange(
+        X_MIN,
+        X_MAX + 0.5 * DX,
+        DX
+    )
+
+elif X_SPACING_MODE == "nonuniform":
+
+    x_values = generate_x_coordinates(
+        X_MIN,
+        X_MAX,
+        X_CENTER,
+        X_FINE_RADIUS,
+        DX_MIN,
+        DX_MAX,
+        DX_GROWTH
+    )
+
+else:
+    raise ValueError(
+        "X_SPACING_MODE must be 'uniform' or 'nonuniform'."
+    )
+
+y_values = np.arange(
+    Y_MIN,
+    Y_MAX + 0.5 * DY,
+    DY
 )
 
-y_values = np.arange(Y_MIN, Y_MAX + 0.5 * DY, DY)
-z_values = np.arange(Z_MIN, Z_MAX + 0.5 * DZ, DZ)
->>>>>>> origin/main
+z_values = np.arange(
+    Z_MIN,
+    Z_MAX + 0.5 * DZ,
+    DZ
+)
 
 # ==============================================================
 # Create point cloud
 # ==============================================================
 
 # x changes fastest, followed by z and then y
-points_mm = np.array([
-    [x, y, z]
-    for y in y_values
-    for z in z_values
-    for x in x_values
+# Use a structured grid to preserve the required ordering
+xx, zz, yy = np.meshgrid(
+    x_values,
+    z_values,
+    y_values,
+    indexing="ij"
+)
+
+# Transpose to ensure X varies fastest
+points_mm = np.column_stack([
+    xx.transpose(2, 1, 0).ravel(),
+    yy.transpose(2, 1, 0).ravel(),
+    zz.transpose(2, 1, 0).ravel()
 ])
 
-<<<<<<< HEAD
+# Convert interference points from millimetres to feet
+points_ft = points_mm * MM_TO_FT
 
-=======
->>>>>>> origin/main
 # ==============================================================
-# Write FlightLab file
+# Write FLIGHTLAB file
 # ==============================================================
+
+# Create output directory if necessary
+OUTPUT_FILE.parent.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
 with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
 
@@ -207,94 +260,52 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
     file.write("!M INTFXYZ\n")
     file.write("!U nd\n")
 
-    for x_mm, y_mm, z_mm in points_mm:
+    # Normalize all coordinates
+    points_nd = points_mm / INTFREFLEN_MM
 
-        x_nd = x_mm * MM_TO_FT / INTFREFLEN_FT
-        y_nd = y_mm * MM_TO_FT / INTFREFLEN_FT
-        z_nd = z_mm * MM_TO_FT / INTFREFLEN_FT
+    # Write interference points
+    np.savetxt(
+        file,
+        points_nd,
+        fmt="   % .9f   % .9f   % .9f"
+    )
 
-        file.write(
-            f"   {x_nd: .9f}"
-            f"   {y_nd: .9f}"
-            f"   {z_nd: .9f}\n"
-        )
-
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # ==============================================================
 # Print information
 # ==============================================================
 
 number_of_points = len(points_mm)
 
-print(f"Created: {OUTPUT_FILE}")
-print(f"x points: {len(x_values)}")
-print(f"y points: {len(y_values)}")
-print(f"z points: {len(z_values)}")
-print(f"Total points: {number_of_points}")
+print(f"\nCreated: {OUTPUT_FILE}")
 
-<<<<<<< HEAD
+print("\nPOINT-CLOUD INFORMATION")
+print("-" * 45)
 
-=======
->>>>>>> origin/main
+print(f"X-spacing mode: {X_SPACING_MODE}")
+print(f"X points:       {len(x_values)}")
+print(f"Y points:       {len(y_values)}")
+print(f"Z points:       {len(z_values)}")
+print(f"Total points:   {number_of_points:,}")
+
+print("\nPOINT-CLOUD BOUNDARIES [mm]")
+print("-" * 45)
+
+print(f"X: {x_values.min():.1f} to {x_values.max():.1f}")
+print(f"Y: {y_values.min():.1f} to {y_values.max():.1f}")
+print(f"Z: {z_values.min():.1f} to {z_values.max():.1f}")
+
+print(f"\nReference length: {INTFREFLEN_FT:.9f} ft")
+
 # ==============================================================
-# Load and transform STL
+# Load aligned STL
 # ==============================================================
 
+# Load previously aligned STL geometry
+# Coordinates are already in feet and follow FLIGHTLAB convention
 mesh = trimesh.load(STL_FILE)
 
 if not isinstance(mesh, trimesh.Trimesh):
     mesh = mesh.dump(concatenate=True)
-
-<<<<<<< HEAD
-
-# --------------------------------------------------------------
-# Rotate STL 270 degrees around x-axis
-# --------------------------------------------------------------
-
-rotation_matrix = trimesh.transformations.rotation_matrix(
-    np.deg2rad(270.0),
-    [1, 0, 0]
-)
-
-mesh.apply_transform(rotation_matrix)
-
-rotation_matrix = trimesh.transformations.rotation_matrix(
-    np.deg2rad(180.0),
-    [0, 0, 1]
-)
-
-mesh.apply_transform(rotation_matrix)
-
-
-# --------------------------------------------------------------
-# Translate STL to aircraft position
-# --------------------------------------------------------------
-
-# Translation [mm]:
-#   +632.7 mm forward  -> +x
-#    -11.1 mm downward -> -z
-
-translation = np.array([
-    632.7,
-    0.0,
-    -11.1
-])
-
-mesh.apply_translation(translation)
-
-=======
-# Convert STL coordinates from metres to millimetres
-mesh.apply_scale(1000)
-
-# Mirror STL geometry along the Y-axis (FlightLab convention)
-mesh.vertices[:, 1] *= -1
-
-# Correct face winding after reflection
-mesh.invert()
->>>>>>> origin/main
 
 # ==============================================================
 # Plot STL and interference points
@@ -303,17 +314,13 @@ mesh.invert()
 fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(111, projection="3d")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # --------------------------------------------------------------
 # STL mesh
 # --------------------------------------------------------------
 
 mesh_collection = Poly3DCollection(
     mesh.triangles,
-    alpha=0.4
+    alpha=1
 )
 
 mesh_collection.set_facecolor("lightgray")
@@ -321,63 +328,60 @@ mesh_collection.set_edgecolor("none")
 
 ax.add_collection3d(mesh_collection)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # --------------------------------------------------------------
 # Interference points
-# --------------------------------------------------------------
+# ==============================================================
 
-<<<<<<< HEAD
-ax.scatter(
-    points_mm[:, 0],
-    points_mm[:, 1],
-    points_mm[:, 2],
-    s=3,
-    alpha=0.4
+# Visualization subsampling factors
+PLOT_STEP_X = 2
+PLOT_STEP_Y = 10
+PLOT_STEP_Z = 10
+
+# Select regularly spaced points along each coordinate axis
+x_plot = x_values[::PLOT_STEP_X]
+y_plot = y_values[::PLOT_STEP_Y]
+z_plot = z_values[::PLOT_STEP_Z]
+
+# Generate structured visualization grid
+xx_plot, yy_plot, zz_plot = np.meshgrid(
+    x_plot,
+    y_plot,
+    z_plot,
+    indexing="ij"
 )
 
-=======
-# Maximum number of points to visualize
-MAX_PLOT_POINTS = 20000
-
-# Randomly select points for visualization
-rng = np.random.default_rng(seed=42)
-
-n_plot = min(MAX_PLOT_POINTS, len(points_mm))
-
-indices = rng.choice(
-    len(points_mm),
-    size=n_plot,
-    replace=False
-)
-
-plot_points = points_mm[indices]
+# Flatten structured grid and convert to feet
+plot_points = np.column_stack([
+    xx_plot.ravel(),
+    yy_plot.ravel(),
+    zz_plot.ravel()
+]) * MM_TO_FT
 
 ax.scatter(
     plot_points[:, 0],
     plot_points[:, 1],
     plot_points[:, 2],
     s=2,
-    alpha=0.25
+    alpha=0.25,
+    color="tab:blue",
+    label="Interference points"
 )
 
 # --------------------------------------------------------------
 # Interference point-cloud bounding box
-# --------------------------------------------------------------
+# ==============================================================
 
-from itertools import product, combinations
-
-# Bounding box limits [mm]
+# Bounding box limits [ft]
 bounds = [
-    (X_MIN, X_MAX),
-    (Y_MIN, Y_MAX),
-    (Z_MIN, Z_MAX)
+    (x_values.min() * MM_TO_FT, x_values.max() * MM_TO_FT),
+    (y_values.min() * MM_TO_FT, y_values.max() * MM_TO_FT),
+    (z_values.min() * MM_TO_FT, z_values.max() * MM_TO_FT)
 ]
 
 # Generate the eight corners
-corners = np.array(list(product(*bounds)))
+corners = np.array(
+    list(product(*bounds))
+)
 
 # Draw the twelve edges of the bounding box
 for start, end in combinations(corners, 2):
@@ -393,43 +397,55 @@ for start, end in combinations(corners, 2):
             linewidth=1.2,
             alpha=0.7
         )
->>>>>>> origin/main
 
 # --------------------------------------------------------------
 # Axis labels
-# --------------------------------------------------------------
+# ==============================================================
 
-ax.set_xlabel("x [mm]")
-ax.set_ylabel("y [mm]")
-ax.set_zlabel("z [mm]")
+ax.set_xlabel("x [ft]")
+ax.set_ylabel("y [ft]")
+ax.set_zlabel("z [ft]")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 # --------------------------------------------------------------
 # Plot limits
-# --------------------------------------------------------------
+# ==============================================================
 
 # Include both STL and complete interference-point domain
-all_plot_points = np.vstack([
-    mesh.vertices,
-    points_mm
-])
+mins = np.minimum(
+    mesh.vertices.min(axis=0),
+    points_ft.min(axis=0)
+)
 
-mins = all_plot_points.min(axis=0)
-maxs = all_plot_points.max(axis=0)
+maxs = np.maximum(
+    mesh.vertices.max(axis=0),
+    points_ft.max(axis=0)
+)
 
 center = (mins + maxs) / 2
 radius = np.max(maxs - mins) / 2
 
-ax.set_xlim(center[0] - radius, center[0] + radius)
-ax.set_ylim(center[1] - radius, center[1] + radius)
-ax.set_zlim(center[2] - radius, center[2] + radius)
+ax.set_xlim(
+    center[0] - radius,
+    center[0] + radius
+)
+
+ax.set_ylim(
+    center[1] - radius,
+    center[1] + radius
+)
+
+ax.set_zlim(
+    center[2] - radius,
+    center[2] + radius
+)
 
 ax.invert_xaxis()
 
 ax.set_box_aspect((1, 1, 1))
+
+# --------------------------------------------------------------
+# Final visualization
+# ==============================================================
 
 plt.tight_layout()
 plt.show()

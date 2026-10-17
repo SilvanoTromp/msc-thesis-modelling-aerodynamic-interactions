@@ -5,11 +5,8 @@
 .idea/
 
 # Large STL file
-<<<<<<< HEAD
 scripts/flightlab_input/simplified airframe.stl
-=======
-scripts/flightlab_input/simplified airframe.stl
+scripts/flightlab_input/simplified airframe_aligned.stl
 
 # Generated FLIGHTLAB interference point grid
 data/flightlab_input/intftabxyz.tab
->>>>>>> origin/main

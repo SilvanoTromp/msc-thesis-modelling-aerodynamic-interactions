@@ -32,6 +32,11 @@ SPAN_AXIS = "y"
 N_SLICES = 40
 N_POINTS_PER_SLICE = 80
 
+OUTPUT_STL_FILE = (
+    Path(__file__).resolve().parent
+    / "simplified airframe_aligned.stl"
+)
+
 OUTPUT_FILE = (
     Path(__file__).resolve().parent.parent.parent
     / "data"
@@ -331,8 +336,15 @@ z_offset = TARGET_Z - reference_point[2]
 # Apply Z-translation
 mesh.apply_translation([0, 0, z_offset])
 
+# Invert Y-coordinates to match the FLIGHTLAB convention
+mesh.vertices[:, 1] *= -1
+
 # Convert geometry from original STL units to feet
 mesh.apply_scale(MM_TO_FT)
+
+# Export aligned STL geometry
+mesh.export(OUTPUT_STL_FILE)
+print(f"Saved aligned STL geometry to {OUTPUT_STL_FILE}")
 
 # Determine bounds of rotated geometry
 bounds = mesh.bounds
@@ -491,7 +503,6 @@ ax.set_zlim(center[2] - radius, center[2] + radius)
 
 # Invert X and Y axes
 ax.invert_xaxis()
-ax.invert_yaxis()
 
 plt.show()
 

@@ -1,13 +1,16 @@
+
 """
 Visualize aligned aircraft geometry and rotor configurations for VPMx simulations.
 
 The script:
 1. Loads the previously aligned STL geometry.
-2. Determines the wing-root midpoint and load balance reference point.
-3. Defines rotor hub locations, radii, and orientations.
-4. Calculates rotor positions relative to the load balance.
-5. Prints reference coordinates and rotor positions.
-6. Visualizes the aircraft mesh, rotor disks, axes, and reference points in 3D.
+2. Loads the structured airframe sections.
+3. Determines the rotor reference origin from the STL geometry.
+4. Determines the wing-root midpoint and load balance reference point.
+5. Defines rotor hub locations, radii, and orientations.
+6. Calculates absolute rotor positions and positions relative to the load balance.
+7. Prints reference coordinates and rotor positions.
+8. Visualizes the aircraft mesh, sections, rotor disks, axes, and reference points in 3D.
 
 The script is intended for verification of aircraft geometry, reference
 coordinates, and rotor positioning before VPMx simulations.
@@ -23,28 +26,18 @@ import pyvista as pv
 # ==============================================================
 
 stl_file = (
-<<<<<<< HEAD
-    Path(__file__).resolve().parent
-    / "LpCVTOL_AIAA-model_remesh.stl"
-=======
     Path(__file__).resolve().parent.parent.parent
     / "data"
     / "bemt_vpmx_input"
-    / "EVO-body-translated.stl"
->>>>>>> origin/main
+    / "LpCVTOL_AIAA-model_remesh.stl"
 )
 
 # Structured airframe sections
 sections_file = (
-<<<<<<< HEAD
-    Path(__file__).resolve().parent
-    / "airframeSections.txt"
-=======
     Path(__file__).resolve().parent.parent.parent
     / "data"
     / "bemt_vpmx_input"
-    / "EVO-body-sections.txt"
->>>>>>> origin/main
+    / "airframeSections.txt"
 )
 
 # ==============================================================
@@ -63,7 +56,7 @@ with open(sections_file, "r", encoding="utf-8") as f:
     lines = [
         line.strip()
         for line in f
-        if line.strip() and not line.startswith("#")
+        if line.strip() and not line.lstrip().startswith("#")
     ]
 
 # Read number of sections and points per section
@@ -90,9 +83,9 @@ structured_sections = points.reshape(
 )
 
 # ==============================================================
-<<<<<<< HEAD
 # Determine rotor reference origin from STL geometry
 # ==============================================================
+
 vertices = mesh.points
 
 # Find vertex with minimum X-coordinate
@@ -133,28 +126,44 @@ print(f"  Y = {rotor_reference[1]:.4f}")
 print(f"  Z = {rotor_reference[2]:.4f}")
 
 # ==============================================================
-=======
->>>>>>> origin/main
 # Determine root midpoint and load balance location
 # ==============================================================
 
 # Find minimum Y coordinate
-min_y = np.min(mesh.points[:, 1])
+min_y = np.min(vertices[:, 1])
 
 # Select vertices at minimum Y
-section_points = mesh.points[
-    np.isclose(mesh.points[:, 1], min_y, atol=1e-5, rtol=0)
+section_points = vertices[
+    np.isclose(vertices[:, 1], min_y, atol=1e-5, rtol=0)
 ]
 
-# Calculate midpoint of X and Z extents
-x_mid = 0.5 * (np.min(section_points[:, 0]) + np.max(section_points[:, 0]))
-z_mid = 0.5 * (np.min(section_points[:, 2]) + np.max(section_points[:, 2]))
+if len(section_points) == 0:
+    raise ValueError("No vertices found at the minimum Y-coordinate.")
 
-# Root midpoint in translated STL coordinates
-root_midpoint = np.array([x_mid, min_y, z_mid])
+# Calculate midpoint of X and Z extents
+x_mid = 0.5 * (
+    np.min(section_points[:, 0]) +
+    np.max(section_points[:, 0])
+)
+
+z_mid = 0.5 * (
+    np.min(section_points[:, 2]) +
+    np.max(section_points[:, 2])
+)
+
+# Root midpoint in STL coordinates
+root_midpoint = np.array([
+    x_mid,
+    min_y,
+    z_mid
+])
 
 # Load balance is 0.10125 m in negative Y direction
-load_balance = root_midpoint + np.array([0.0, -0.10125, 0.0])
+load_balance = root_midpoint + np.array([
+    0.0,
+    -0.10125,
+    0.0
+])
 
 # ==============================================================
 # Print reference points
@@ -174,27 +183,19 @@ print(f"  Z = {load_balance[2]:.4f}")
 # Aircraft rotor locations
 # ==============================================================
 
-<<<<<<< HEAD
 # Rotor locations relative to reference origin [m]
 rotor_locations_relative = {
-=======
-# Rotor locations relative to LE reference [m]
-rotor_locations = {
->>>>>>> origin/main
     "Front hover rotor": np.array([-0.0306, 0.3552, 0.0320]),
     "Aft hover rotor":   np.array([ 0.6492, 0.3567, 0.0418]),
-    "Pusher propeller":  np.array([ 0.6647, 0.0000,-0.0111])
+    "Pusher propeller":  np.array([ 0.6647, 0.0000,-0.0111]),
 }
 
-<<<<<<< HEAD
 # Calculate absolute rotor locations in STL coordinates
 rotor_locations = {
     name: rotor_reference + position
     for name, position in rotor_locations_relative.items()
 }
 
-=======
->>>>>>> origin/main
 # Calculate locations relative to load balance
 rotor_locations_balance = {
     name: position - load_balance
@@ -206,6 +207,7 @@ rotor_locations_balance = {
 # ==============================================================
 
 def print_coordinates(title, locations):
+
     print(f"\n{title}")
     print("-" * 65)
     print(f"{'Component':<25} {'X [m]':>12} {'Y [m]':>12} {'Z [m]':>12}")
@@ -218,8 +220,14 @@ def print_coordinates(title, locations):
             f"{position[2]:>12.4f}"
         )
 
+
 print_coordinates(
-    "ROTOR LOCATIONS RELATIVE TO LE",
+    "ROTOR LOCATIONS RELATIVE TO REFERENCE ORIGIN",
+    rotor_locations_relative
+)
+
+print_coordinates(
+    "ROTOR LOCATIONS IN STL COORDINATES",
     rotor_locations
 )
 
@@ -265,10 +273,6 @@ ROTOR_HUB_RADIUS = 0.006
 
 plotter = pv.Plotter(window_size=(1400, 1000))
 
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main
 # Plot aircraft STL
 plotter.add_mesh(
     mesh,
@@ -308,6 +312,16 @@ for section in structured_sections:
         color="red",
         line_width=1.5,
     )
+
+# Plot rotor reference origin
+plotter.add_mesh(
+    pv.Sphere(
+        radius=REFERENCE_POINT_RADIUS,
+        center=rotor_reference,
+    ),
+    color="blue",
+    label="Rotor reference origin",
+)
 
 # Plot root midpoint
 plotter.add_mesh(
