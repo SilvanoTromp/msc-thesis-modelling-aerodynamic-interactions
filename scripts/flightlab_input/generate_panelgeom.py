@@ -26,7 +26,7 @@ from pathlib import Path
 # User settings
 # ==================================================
 
-STL_FILE = "LpCVTOL_AIAA-model_remesh.stl"
+STL_FILE = "simplified airframe.stl"
 
 SPAN_AXIS = "y"
 N_SLICES = 40
@@ -40,14 +40,14 @@ OUTPUT_FILE = (
 )
 
 # FlightLab wants feet
-M_TO_FT = 3.280839895
+MM_TO_FT = 0.00328084
 
 # Clockwise when looking from body-front / negative span side
 CLOCKWISE_LOOKING_FROM_NEGATIVE_SPAN = False
 
 # End-cap settings, in STL units
-CAP_OFFSET = 0.001 * M_TO_FT
-CAP_CONTOUR_SIZE = 0.001 * M_TO_FT
+CAP_OFFSET = 0.001 * MM_TO_FT
+CAP_CONTOUR_SIZE = 0.001 * MM_TO_FT
 
 # Trailing edge is min x for aircraft geometry.
 TRAILING_EDGE_AXIS = "x"
@@ -276,7 +276,7 @@ def write_flightlab_panel_tab(filename, slices):
     print(f"PEDGE  = {pedge.shape[0]} x 3")
 
 # ==================================================
-# Load STL
+# Load and rotate STL
 # ==================================================
 
 mesh = trimesh.load(STL_FILE)
@@ -284,14 +284,19 @@ mesh = trimesh.load(STL_FILE)
 if not isinstance(mesh, trimesh.Trimesh):
     mesh = mesh.dump(concatenate=True)
 
-# ==================================================
-# Load STL
-# ==================================================
+# Rotate 180 degrees about the global Z-axis
+rotation_z = trimesh.transformations.rotation_matrix(
+    np.radians(180),
+    [0, 0, 1]
+)
+mesh.apply_transform(rotation_z)
 
-mesh = trimesh.load(STL_FILE)
-
-if not isinstance(mesh, trimesh.Trimesh):
-    mesh = mesh.dump(concatenate=True)
+# Rotate 270 degrees about the global X-axis
+rotation_x = trimesh.transformations.rotation_matrix(
+    np.radians(270),
+    [1, 0, 0]
+)
+mesh.apply_transform(rotation_x)
 
 # Find the vertex with minimum X-coordinate
 vertices = mesh.vertices
@@ -326,18 +331,8 @@ z_offset = TARGET_Z - reference_point[2]
 # Apply Z-translation
 mesh.apply_translation([0, 0, z_offset])
 
-# Save translated geometry in metres
-output_path = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "bemt_vpmx_input"
-    / "EVO-body-translated.stl"
-)
-mesh.export(output_path)
-print(f"Saved translated STL geometry in metres to {output_path.resolve()}")
-
 # Convert geometry from original STL units to feet
-mesh.apply_scale(M_TO_FT)
+mesh.apply_scale(MM_TO_FT)
 
 # Determine bounds of rotated geometry
 bounds = mesh.bounds
@@ -494,4 +489,132 @@ ax.set_xlim(center[0] - radius, center[0] + radius)
 ax.set_ylim(center[1] - radius, center[1] + radius)
 ax.set_zlim(center[2] - radius, center[2] + radius)
 
+# Invert X and Y axes
+ax.invert_xaxis()
+ax.invert_yaxis()
+
 plt.show()
+
+# ==================================================
+# Interactive PyVista 3D plot
+# ==================================================
+
+import pyvista as pv
+
+# Convert trimesh geometry to PyVista
+faces = np.hstack([
+    np.full((len(mesh.faces), 1), 3),
+    mesh.faces
+]).astype(np.int64)
+
+stl_mesh = pv.PolyData(
+    mesh.vertices,
+    faces.ravel()
+)
+
+# ==================================================
+# Generate structured panel surface
+# ==================================================
+
+n_slices = len(structured_slices)
+n_points = N_POINTS_PER_SLICE
+
+# Flatten structured slices into a single point array
+panel_points = np.vstack(structured_slices)
+
+# Generate quadrilateral panels between adjacent slices
+panel_faces = []
+
+for i in range(n_slices - 1):
+    for j in range(n_points):
+
+        j_next = (j + 1) % n_points
+
+        p0 = i * n_points + j
+        p1 = i * n_points + j_next
+        p2 = (i + 1) * n_points + j_next
+        p3 = (i + 1) * n_points + j
+
+        panel_faces.extend([4, p0, p1, p2, p3])
+
+panel_mesh = pv.PolyData(
+    panel_points,
+    np.array(panel_faces, dtype=np.int64)
+)
+
+# ==================================================
+# Create interactive plot
+# ==================================================
+
+plotter = pv.Plotter(
+    window_size=(1400, 900)
+)
+
+plotter.set_background("white")
+
+# STL geometry
+plotter.add_mesh(
+    stl_mesh,
+    color="lightgray",
+    opacity=0.35,
+    show_edges=False,
+    label="STL geometry"
+)
+
+# Structured panel geometry
+plotter.add_mesh(
+    panel_mesh,
+    color="royalblue",
+    opacity=0.65,
+    show_edges=True,
+    edge_color="black",
+    line_width=1,
+    label="FLIGHTLAB panels"
+)
+
+# Panel vertices
+plotter.add_points(
+    panel_points,
+    color="red",
+    point_size=5,
+    render_points_as_spheres=True,
+    label="Panel vertices"
+)
+
+# Trailing-edge points (point 0 of each section)
+trailing_edge_points = np.array([
+    section[0] for section in structured_slices
+])
+
+plotter.add_points(
+    trailing_edge_points,
+    color="yellow",
+    point_size=10,
+    render_points_as_spheres=True,
+    label="Trailing edge"
+)
+
+# Coordinate axes
+plotter.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z"
+)
+
+plotter.show_grid(
+    xtitle="X [ft]",
+    ytitle="Y [ft]",
+    ztitle="Z [ft]"
+)
+
+# Legend
+plotter.add_legend(
+    bcolor="white",
+    border=True
+)
+
+# Camera orientation
+plotter.view_isometric()
+
+# Interactive window
+plotter.show()

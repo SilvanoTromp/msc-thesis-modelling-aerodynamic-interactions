@@ -23,18 +23,14 @@ import pyvista as pv
 # ==============================================================
 
 stl_file = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "bemt_vpmx_input"
-    / "EVO-body-translated.stl"
+    Path(__file__).resolve().parent
+    / "LpCVTOL_AIAA-model_remesh.stl"
 )
 
 # Structured airframe sections
 sections_file = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "bemt_vpmx_input"
-    / "EVO-body-sections.txt"
+    Path(__file__).resolve().parent
+    / "airframeSections.txt"
 )
 
 # ==============================================================
@@ -80,6 +76,48 @@ structured_sections = points.reshape(
 )
 
 # ==============================================================
+# Determine rotor reference origin from STL geometry
+# ==============================================================
+vertices = mesh.points
+
+# Find vertex with minimum X-coordinate
+min_x_idx = np.argmin(vertices[:, 0])
+min_x_vertex = vertices[min_x_idx]
+
+# Reference X and Y coordinates
+x_ref = min_x_vertex[0]
+y_ref = min_x_vertex[1]
+
+# Find vertices at the corresponding Y-coordinate
+y_tolerance = 1e-5
+
+same_y_vertices = vertices[
+    np.isclose(vertices[:, 1], y_ref, atol=y_tolerance, rtol=0)
+]
+
+if len(same_y_vertices) == 0:
+    raise ValueError("No vertices found at the reference Y-coordinate.")
+
+# Find maximum X-coordinate among these vertices
+max_x_idx = np.argmax(same_y_vertices[:, 0])
+max_x_vertex = same_y_vertices[max_x_idx]
+
+# Reference Z-coordinate
+z_ref = max_x_vertex[2] + 0.0111
+
+# Construct rotor reference origin
+rotor_reference = np.array([
+    x_ref,
+    y_ref,
+    z_ref
+])
+
+print("\nRotor reference origin [m]:")
+print(f"  X = {rotor_reference[0]:.4f}")
+print(f"  Y = {rotor_reference[1]:.4f}")
+print(f"  Z = {rotor_reference[2]:.4f}")
+
+# ==============================================================
 # Determine root midpoint and load balance location
 # ==============================================================
 
@@ -119,11 +157,17 @@ print(f"  Z = {load_balance[2]:.4f}")
 # Aircraft rotor locations
 # ==============================================================
 
-# Rotor locations relative to LE reference [m]
-rotor_locations = {
+# Rotor locations relative to reference origin [m]
+rotor_locations_relative = {
     "Front hover rotor": np.array([-0.0306, 0.3552, 0.0320]),
     "Aft hover rotor":   np.array([ 0.6492, 0.3567, 0.0418]),
     "Pusher propeller":  np.array([ 0.6647, 0.0000,-0.0111])
+}
+
+# Calculate absolute rotor locations in STL coordinates
+rotor_locations = {
+    name: rotor_reference + position
+    for name, position in rotor_locations_relative.items()
 }
 
 # Calculate locations relative to load balance
@@ -195,7 +239,6 @@ ROTOR_HUB_RADIUS = 0.006
 # ==============================================================
 
 plotter = pv.Plotter(window_size=(1400, 1000))
-
 
 # Plot aircraft STL
 plotter.add_mesh(
