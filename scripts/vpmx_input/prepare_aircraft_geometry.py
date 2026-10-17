@@ -23,14 +23,28 @@ import pyvista as pv
 # ==============================================================
 
 stl_file = (
+<<<<<<< HEAD
     Path(__file__).resolve().parent
     / "LpCVTOL_AIAA-model_remesh.stl"
+=======
+    Path(__file__).resolve().parent.parent.parent
+    / "data"
+    / "bemt_vpmx_input"
+    / "EVO-body-translated.stl"
+>>>>>>> origin/main
 )
 
 # Structured airframe sections
 sections_file = (
+<<<<<<< HEAD
     Path(__file__).resolve().parent
     / "airframeSections.txt"
+=======
+    Path(__file__).resolve().parent.parent.parent
+    / "data"
+    / "bemt_vpmx_input"
+    / "EVO-body-sections.txt"
+>>>>>>> origin/main
 )
 
 # ==============================================================
@@ -76,6 +90,7 @@ structured_sections = points.reshape(
 )
 
 # ==============================================================
+<<<<<<< HEAD
 # Determine rotor reference origin from STL geometry
 # ==============================================================
 vertices = mesh.points
@@ -118,6 +133,8 @@ print(f"  Y = {rotor_reference[1]:.4f}")
 print(f"  Z = {rotor_reference[2]:.4f}")
 
 # ==============================================================
+=======
+>>>>>>> origin/main
 # Determine root midpoint and load balance location
 # ==============================================================
 
@@ -157,19 +174,27 @@ print(f"  Z = {load_balance[2]:.4f}")
 # Aircraft rotor locations
 # ==============================================================
 
+<<<<<<< HEAD
 # Rotor locations relative to reference origin [m]
 rotor_locations_relative = {
+=======
+# Rotor locations relative to LE reference [m]
+rotor_locations = {
+>>>>>>> origin/main
     "Front hover rotor": np.array([-0.0306, 0.3552, 0.0320]),
     "Aft hover rotor":   np.array([ 0.6492, 0.3567, 0.0418]),
     "Pusher propeller":  np.array([ 0.6647, 0.0000,-0.0111])
 }
 
+<<<<<<< HEAD
 # Calculate absolute rotor locations in STL coordinates
 rotor_locations = {
     name: rotor_reference + position
     for name, position in rotor_locations_relative.items()
 }
 
+=======
+>>>>>>> origin/main
 # Calculate locations relative to load balance
 rotor_locations_balance = {
     name: position - load_balance
@@ -240,6 +265,10 @@ ROTOR_HUB_RADIUS = 0.006
 
 plotter = pv.Plotter(window_size=(1400, 1000))
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 # Plot aircraft STL
 plotter.add_mesh(
     mesh,
