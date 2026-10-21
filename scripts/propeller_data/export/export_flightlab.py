@@ -14,6 +14,10 @@ The script:
     10. Writes one blade-section .tab file for each aerodynamic node for use as FLIGHTLAB input.
 """
 
+import sys
+from pathlib import Path
+utilities_dir = Path(__file__).resolve().parent.parent.parent.parent / "src" / "propeller_data"
+sys.path.insert(0, str(utilities_dir))
 from utilities import *
 
 import re
@@ -335,7 +339,7 @@ def write_blade_aero_nodes_file(prop, grouped_polars, output_folder):
     Write blade aerodynamic nodal distribution file for FLIGHTLAB input.
     """
 
-    output_path = output_folder / f"EVO-{prop}-bladeaeronodes.tab"
+    output_path = output_folder / f"{prop}-bladeaeronodes.tab"
 
     with open(output_path, "w") as f:
         f.write("# Title: Blade aerodynamic nodal distribution\n\n")
@@ -398,7 +402,7 @@ def write_section_file(prop, section_index, r_R, polar_entries, output_folder):
 
     output_path = (
         output_folder
-        / f"EVO-{prop}-propellerblade-section-{section_index}.tab"
+        / f"{prop}-propellerblade-section-{section_index}.tab"
     )
 
     with open(output_path, "w") as f:
@@ -525,7 +529,7 @@ if __name__ == "__main__":
     # Define blade-property output file
     propblade_output_file = (
         FLIGHTLAB_OUTPUT_DIRECTORY
-        / f"EVO-{prop}-propellerblade-properties.tab"
+        / f"{prop}-propellerblade-properties.tab"
     )
 
     # Create output directory if it does not yet exist

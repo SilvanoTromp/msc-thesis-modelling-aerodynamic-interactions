@@ -41,7 +41,7 @@ OUTPUT_FILE = (
     Path(__file__).resolve().parent.parent.parent
     / "data"
     / "flightlab_input"
-    / "EVO-body-panelgeom.tab"
+    / "body-panelgeom.tab"
 )
 
 # FlightLab wants feet

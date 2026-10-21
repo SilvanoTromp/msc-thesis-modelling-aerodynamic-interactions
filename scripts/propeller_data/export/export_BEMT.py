@@ -13,6 +13,10 @@ The script:
     9. Writes the stacked Cd_mesh.dat file for use as BEMT input.
 """
 
+import sys
+from pathlib import Path
+utilities_dir = Path(__file__).resolve().parent.parent.parent.parent / "src" / "propeller_data"
+sys.path.insert(0, str(utilities_dir))
 from utilities import *
 
 import re
