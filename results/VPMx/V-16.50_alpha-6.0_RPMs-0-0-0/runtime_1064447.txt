@@ -1,0 +1,27 @@
+Job ID: 1064447
+Start: Sat Oct 24 01:48:40 CEST 2026
+	Command being timed: "./runCase_cuda.sh"
+	User time (seconds): 10062.47
+	System time (seconds): 73.40
+	Percent of CPU this job got: 98%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:51:50
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 789600
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2618
+	Minor (reclaiming a frame) page faults: 6158007
+	Voluntary context switches: 438730
+	Involuntary context switches: 12688
+	Swaps: 0
+	File system inputs: 16619
+	File system outputs: 5764
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+End: Sat Oct 24 04:40:31 CEST 2026
+Exit code: 0
