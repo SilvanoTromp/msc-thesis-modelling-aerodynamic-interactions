@@ -10,6 +10,7 @@ scripts/flightlab_input/simplified airframe_aligned.stl
 data/bemt_vpmx_input/LpCVTOL_AIAA-model_remesh.stl
 data/bemt_vpmx_input/airframeSections.txt
 data/flightlab_input/body-panelgeom.tab
+results/VPMx
 
 # Generated FLIGHTLAB interference point grid (too big)
 data/flightlab_input/intftabxyz.tab
