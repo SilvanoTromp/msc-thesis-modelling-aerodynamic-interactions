@@ -30,7 +30,7 @@ STL_FILE = "simplified airframe.stl"
 
 SPAN_AXIS = "y"
 N_SLICES = 40
-N_POINTS_PER_SLICE = 80
+N_POINTS_PER_SLICE = 120
 
 OUTPUT_STL_FILE = (
     Path(__file__).resolve().parent
@@ -48,11 +48,11 @@ OUTPUT_FILE = (
 MM_TO_FT = 0.00328084
 
 # Clockwise when looking from body-front / negative span side
-CLOCKWISE_LOOKING_FROM_NEGATIVE_SPAN = False
+CLOCKWISE_LOOKING_FROM_NEGATIVE_SPAN = True
 
 # End-cap settings, in STL units
-CAP_OFFSET = 0.001 * MM_TO_FT
-CAP_CONTOUR_SIZE = 0.001 * MM_TO_FT
+CAP_OFFSET = 0.1 * MM_TO_FT
+CAP_CONTOUR_SIZE = 0.1 * MM_TO_FT
 
 # Trailing edge is min x for aircraft geometry.
 TRAILING_EDGE_AXIS = "x"
@@ -156,6 +156,32 @@ def resample_curve(points, n_points):
     surface_1 = points[:le_idx + 1]
     surface_2 = np.vstack([points[le_idx:], points[0]])
 
+    def uniform_resample(surface, n):
+        """Resample an open surface using uniform arc-length spacing."""
+
+        ds = np.linalg.norm(np.diff(surface, axis=0), axis=1)
+        s = np.insert(np.cumsum(ds), 0, 0.0)
+
+        # Remove zero-length segments
+        valid = np.insert(np.diff(s) > 1e-12, 0, True)
+        s = s[valid]
+        surface = surface[valid]
+
+        if len(s) < 2:
+            raise ValueError("Insufficient points for surface resampling.")
+
+        # Uniform distribution along the surface arc length
+        xi = np.linspace(0.0, 1.0, n)
+
+        target_s = xi * s[-1]
+
+        sampled = np.zeros((n, 3))
+
+        for i in range(3):
+            sampled[:, i] = np.interp(target_s, s, surface[:, i])
+
+        return sampled
+
     def cosine_resample(surface, n):
         """Resample an open surface using cosine-clustered arc length."""
         ds = np.linalg.norm(np.diff(surface, axis=0), axis=1)
@@ -185,8 +211,8 @@ def resample_curve(points, n_points):
     # Number of points per surface
     n_surface = n_points // 2 + 1
 
-    sampled_1 = cosine_resample(surface_1, n_surface)
-    sampled_2 = cosine_resample(surface_2, n_surface)
+    sampled_1 = uniform_resample(surface_1, n_surface)
+    sampled_2 = uniform_resample(surface_2, n_surface)
 
     # Combine surfaces without duplicating LE and TE
     sampled = np.vstack([
@@ -336,9 +362,6 @@ z_offset = TARGET_Z - reference_point[2]
 # Apply Z-translation
 mesh.apply_translation([0, 0, z_offset])
 
-# Invert Y-coordinates to match the FLIGHTLAB convention
-mesh.vertices[:, 1] *= -1
-
 # Convert geometry from original STL units to feet
 mesh.apply_scale(MM_TO_FT)
 
@@ -415,6 +438,82 @@ first_cap_slice = create_tiny_cap_slice(first_real_slice, first_cap_location)
 last_cap_slice = create_tiny_cap_slice(last_real_slice, last_cap_location)
 
 structured_slices = [first_cap_slice] + structured_slices + [last_cap_slice]
+
+# ==================================================
+# Calculate mean aerodynamic chord (MAC)
+# ==================================================
+
+# Spanwise positions of the generated sections [ft]
+span_positions = np.array([
+    np.mean(section[:, span_idx])
+    for section in structured_slices
+])
+
+# Local chord lengths based on LE and TE coordinates [ft]
+chord_lengths = np.array([
+    np.ptp(section[:, te_axis_idx])
+    for section in structured_slices
+])
+
+# Sort sections by spanwise position
+sort_idx = np.argsort(span_positions)
+span_positions = span_positions[sort_idx]
+chord_lengths = chord_lengths[sort_idx]
+
+# Integrate chord distribution along the span
+wing_area = np.trapezoid(chord_lengths, span_positions)
+chord_squared_integral = np.trapezoid(
+    chord_lengths**2, span_positions
+)
+
+# Mean aerodynamic chord [ft]
+MAC = chord_squared_integral / wing_area
+
+print("\n===== Wing Geometry =====")
+print(f"Spanwise extent       = {np.ptp(span_positions):.4f} ft")
+print(f"Reference area        = {wing_area:.4f} ft²")
+print(f"Mean aerodynamic chord = {MAC:.4f} ft")
+print("=========================\n")
+
+# ==================================================
+# Calculate quarter-chord point at Y = 0
+# ==================================================
+
+def calculate_quarter_chord(mesh, y_location=0.0):
+    """Calculate the quarter-chord point at a specified spanwise location."""
+
+    # Extract cross-section at specified Y-coordinate
+    section = mesh.section(
+        plane_origin=[0, y_location, 0],
+        plane_normal=[0, 1, 0]
+    )
+
+    if section is None:
+        raise ValueError(f"No cross-section found at Y = {y_location} ft.")
+
+    # Select main contour
+    curves = section.discrete
+    main_curve = max(
+        curves,
+        key=lambda c: np.sum(np.linalg.norm(np.diff(c, axis=0), axis=1))
+    )
+
+    # Identify leading and trailing edges
+    le = main_curve[np.argmin(main_curve[:, 0])]
+    te = main_curve[np.argmax(main_curve[:, 0])]
+
+    # Quarter-chord point along straight chord line
+    quarter_chord = le + 0.25 * (te - le)
+
+    return quarter_chord
+
+quarter_chord = calculate_quarter_chord(mesh, y_location=0.0)
+
+print("\n===== Quarter-Chord at Y = 0 =====")
+print(f"X = {quarter_chord[0]:.4f} ft")
+print(f"Y = {quarter_chord[1]:.4f} ft")
+print(f"Z = {quarter_chord[2]:.4f} ft")
+print("==================================\n")
 
 # ==================================================
 # Verify trailing-edge point ordering

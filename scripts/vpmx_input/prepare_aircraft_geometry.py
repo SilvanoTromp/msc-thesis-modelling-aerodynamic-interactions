@@ -282,7 +282,6 @@ plotter.add_mesh(
     edge_color="black",
     line_width=0.5,
     smooth_shading=False,
-    label="Aircraft panel mesh",
 )
 
 # Visualize structured airframe sections
@@ -291,7 +290,7 @@ for section in structured_sections:
     # Show section points
     plotter.add_points(
         section,
-        color="red",
+        color="darkorange",
         point_size=4,
         render_points_as_spheres=True,
     )
@@ -320,7 +319,6 @@ plotter.add_mesh(
         center=rotor_reference,
     ),
     color="blue",
-    label="Rotor reference origin",
 )
 
 # Plot root midpoint
@@ -330,7 +328,6 @@ plotter.add_mesh(
         center=root_midpoint,
     ),
     color="green",
-    label="Root midpoint",
 )
 
 # Plot load balance reference point
@@ -340,7 +337,6 @@ plotter.add_mesh(
         center=load_balance,
     ),
     color="red",
-    label="Load balance",
 )
 
 # Plot rotor disks and axes
@@ -364,7 +360,7 @@ for name, hub in rotor_locations.items():
         color="gray",
         opacity=ROTOR_OPACITY,
         show_edges=False,
-        label=name,
+        label="Rotor disks",
     )
 
     # Rotor circumference
@@ -425,6 +421,22 @@ plotter.view_isometric()
 
 # White background
 plotter.set_background("white")
+
+# Legend
+plotter.add_legend(
+    labels=[
+        ["Aircraft panel mesh", "lightgray"],
+        ["Airframe sections", "darkorange"],
+        ["Rotor disks", "gray"],
+        ["Rotor reference origin", "blue"],
+        ["Root midpoint", "green"],
+        ["Load balance", "red"],
+    ],
+    bcolor="white",
+    border=True,
+    size=(0.22, 0.22),
+    loc="upper right",
+)
 
 # Show interactive visualization
 plotter.show()

@@ -307,6 +307,9 @@ mesh = trimesh.load(STL_FILE)
 if not isinstance(mesh, trimesh.Trimesh):
     mesh = mesh.dump(concatenate=True)
 
+# Mirror STL geometry across the XZ-plane (+Y -> -Y)
+mesh.vertices[:, 1] *= -1
+
 # ==============================================================
 # Plot STL and interference points
 # ==============================================================
