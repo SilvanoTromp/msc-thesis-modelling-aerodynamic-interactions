@@ -5,12 +5,11 @@ and visualize the interference points together with the aircraft STL.
 The script:
 1. Loads the previously aligned aircraft STL geometry in feet.
 2. Uses the existing FLIGHTLAB coordinate convention.
-3. Generates interference points using uniform or non-uniform X-spacing.
-4. Uses uniform spacing in the Y- and Z-directions.
-5. Normalizes the interference-point coordinates using INTFREFLEN_FT.
-6. Exports the interference points to a FLIGHTLAB-compatible .tab file.
-7. Prints the point-cloud dimensions and total number of points.
-8. Visualizes the STL, interference points, and point-cloud boundaries.
+3. Generates interference points using uniform spacing.
+4. Normalizes the interference-point coordinates using INTFREFLEN_FT.
+5. Exports the interference points to a FLIGHTLAB-compatible .tab file.
+6. Prints the point-cloud dimensions and total number of points.
+7. Visualizes the STL, interference points, and point-cloud boundaries.
 
 The script is intended for preparation and verification of interference
 point locations used for flow-field evaluation in FLIGHTLAB.
@@ -52,30 +51,15 @@ OUTPUT_FILE = (
 # Point-cloud settings
 # ==============================================================
 
-# Point-cloud boundaries [mm]
-X_MIN = -500
-X_MAX = 1500
+# Flow-field plane location [mm]
+X_PLANE = 714.7  # 50 mm downstream of pusher propeller hub
 
+# Plane boundaries [mm]
 Y_MIN = -698
 Y_MAX = 248
 
 Z_MIN = -200
 Z_MAX = 200
-
-# X-spacing mode: "uniform" or "nonuniform"
-X_SPACING_MODE = "nonuniform"
-
-# Uniform X-spacing [mm]
-DX = 2
-
-# Region of interest [mm]
-X_CENTER = 714.7       # 50 mm downstream of pusher propeller hub
-X_FINE_RADIUS = 24     # fine spacing within +/- 24 mm
-
-# Non-uniform X-spacing [mm]
-DX_MIN = 2
-DX_MAX = 100
-DX_GROWTH = 1.4
 
 # Uniform YZ-spacing [mm]
 DY = 2
@@ -93,114 +77,13 @@ INTFREFLEN_MM = 312.267658
 INTFREFLEN_FT = INTFREFLEN_MM * MM_TO_FT
 
 # ==============================================================
-# Generate X-coordinates
-# ==============================================================
-
-def generate_x_coordinates(
-    x_min,
-    x_max,
-    x_center,
-    fine_radius,
-    dx_min,
-    dx_max,
-    growth_factor
-):
-    """Generate smoothly stretched X-planes around a fine-resolution region."""
-
-    if not x_min < x_center < x_max:
-        raise ValueError("X_CENTER must lie between X_MIN and X_MAX.")
-
-    if dx_min <= 0 or dx_max < dx_min:
-        raise ValueError("Invalid minimum or maximum X-spacing.")
-
-    if growth_factor <= 1:
-        raise ValueError("DX_GROWTH must be greater than 1.")
-
-    def generate_direction(boundary, direction):
-
-        coordinates = [x_center]
-        position = x_center
-
-        # Fine spacing within the region of interest
-        while abs(position - x_center) < fine_radius:
-
-            next_position = position + direction * dx_min
-
-            if direction > 0 and next_position >= boundary:
-                coordinates.append(boundary)
-                return coordinates
-
-            if direction < 0 and next_position <= boundary:
-                coordinates.append(boundary)
-                return coordinates
-
-            coordinates.append(next_position)
-            position = next_position
-
-        # Gradually increase spacing outside the fine region
-        spacing = dx_min
-
-        while True:
-
-            spacing = min(
-                spacing * growth_factor,
-                dx_max
-            )
-
-            next_position = position + direction * spacing
-
-            if direction > 0 and next_position >= boundary:
-                coordinates.append(boundary)
-                break
-
-            if direction < 0 and next_position <= boundary:
-                coordinates.append(boundary)
-                break
-
-            coordinates.append(next_position)
-            position = next_position
-
-        return coordinates
-
-    negative = generate_direction(x_min, -1)
-    positive = generate_direction(x_max, 1)
-
-    coordinates = np.unique(
-        np.round(negative + positive, 6)
-    )
-
-    return coordinates
-
-
-# ==============================================================
 # Create coordinates
 # ==============================================================
 
-if X_SPACING_MODE == "uniform":
+# Single X-plane
+x_values = np.array([X_PLANE])
 
-    x_values = np.arange(
-        X_MIN,
-        X_MAX + 0.5 * DX,
-        DX
-    )
-
-elif X_SPACING_MODE == "nonuniform":
-
-    x_values = generate_x_coordinates(
-        X_MIN,
-        X_MAX,
-        X_CENTER,
-        X_FINE_RADIUS,
-        DX_MIN,
-        DX_MAX,
-        DX_GROWTH
-    )
-
-else:
-    raise ValueError(
-        "X_SPACING_MODE must be 'uniform' or 'nonuniform'."
-    )
-
+# Uniform YZ-grid
 y_values = np.arange(
     Y_MIN,
     Y_MAX + 0.5 * DY,
@@ -280,8 +163,6 @@ print(f"\nCreated: {OUTPUT_FILE}")
 
 print("\nPOINT-CLOUD INFORMATION")
 print("-" * 45)
-
-print(f"X-spacing mode: {X_SPACING_MODE}")
 print(f"X points:       {len(x_values)}")
 print(f"Y points:       {len(y_values)}")
 print(f"Z points:       {len(z_values)}")
@@ -289,7 +170,6 @@ print(f"Total points:   {number_of_points:,}")
 
 print("\nPOINT-CLOUD BOUNDARIES [mm]")
 print("-" * 45)
-
 print(f"X: {x_values.min():.1f} to {x_values.max():.1f}")
 print(f"Y: {y_values.min():.1f} to {y_values.max():.1f}")
 print(f"Z: {z_values.min():.1f} to {z_values.max():.1f}")
@@ -335,21 +215,11 @@ ax.add_collection3d(mesh_collection)
 # Interference points
 # ==============================================================
 
-# Visualization subsampling factors
-PLOT_STEP_X = 2
-PLOT_STEP_Y = 10
-PLOT_STEP_Z = 10
-
-# Select regularly spaced points along each coordinate axis
-x_plot = x_values[::PLOT_STEP_X]
-y_plot = y_values[::PLOT_STEP_Y]
-z_plot = z_values[::PLOT_STEP_Z]
-
 # Generate structured visualization grid
 xx_plot, yy_plot, zz_plot = np.meshgrid(
-    x_plot,
-    y_plot,
-    z_plot,
+    x_values,
+    y_values,
+    z_values,
     indexing="ij"
 )
 
@@ -369,37 +239,6 @@ ax.scatter(
     color="tab:blue",
     label="Interference points"
 )
-
-# --------------------------------------------------------------
-# Interference point-cloud bounding box
-# ==============================================================
-
-# Bounding box limits [ft]
-bounds = [
-    (x_values.min() * MM_TO_FT, x_values.max() * MM_TO_FT),
-    (y_values.min() * MM_TO_FT, y_values.max() * MM_TO_FT),
-    (z_values.min() * MM_TO_FT, z_values.max() * MM_TO_FT)
-]
-
-# Generate the eight corners
-corners = np.array(
-    list(product(*bounds))
-)
-
-# Draw the twelve edges of the bounding box
-for start, end in combinations(corners, 2):
-
-    # Only connect corners differing in one coordinate
-    if np.sum(np.abs(start - end) > 1e-9) == 1:
-
-        ax.plot(
-            [start[0], end[0]],
-            [start[1], end[1]],
-            [start[2], end[2]],
-            color="black",
-            linewidth=1.2,
-            alpha=0.7
-        )
 
 # --------------------------------------------------------------
 # Axis labels

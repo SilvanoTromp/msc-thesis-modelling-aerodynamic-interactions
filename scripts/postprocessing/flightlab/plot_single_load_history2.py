@@ -24,8 +24,8 @@ import numpy as np
 # ==============================================================
 
 LOADS_FILE = Path(
-    "S:/EVO/WT/results/LL/"
-    "V-5.10_alpha-6_RPMs-1-1-1/loads.tab"
+    "S:/EVO/WT/results/final/"
+    "V-5.10_alpha-1.70_RPMs-3000-6169-2189/loads.tab"
 )
 
 # ==============================================================

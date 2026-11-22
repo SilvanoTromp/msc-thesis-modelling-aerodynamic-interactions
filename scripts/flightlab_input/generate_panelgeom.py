@@ -645,7 +645,7 @@ for i in range(n_slices - 1):
         p2 = (i + 1) * n_points + j_next
         p3 = (i + 1) * n_points + j
 
-        panel_faces.extend([4, p0, p1, p2, p3])
+        panel_faces.extend([4, p0, p3, p2, p1])
 
 panel_mesh = pv.PolyData(
     panel_points,
