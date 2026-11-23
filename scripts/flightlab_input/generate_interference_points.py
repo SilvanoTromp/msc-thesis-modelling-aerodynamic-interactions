@@ -4,7 +4,7 @@ and visualize the interference points together with the aircraft STL.
 
 The script:
 1. Loads the previously aligned aircraft STL geometry in feet.
-2. Uses the existing FLIGHTLAB coordinate convention.
+2. Uses the FLIGHTLAB inertial coordinate frame.
 3. Generates interference points using uniform spacing.
 4. Normalizes the interference-point coordinates using INTFREFLEN_FT.
 5. Exports the interference points to a FLIGHTLAB-compatible .tab file.
@@ -48,42 +48,69 @@ OUTPUT_FILE = (
 )
 
 # ==============================================================
-# Point-cloud settings
-# ==============================================================
-
-# Flow-field plane location [mm]
-X_PLANE = 714.7  # 50 mm downstream of pusher propeller hub
-
-# Plane boundaries [mm]
-Y_MIN = -698
-Y_MAX = 248
-
-Z_MIN = -200
-Z_MAX = 200
-
-# Uniform YZ-spacing [mm]
-DY = 2
-DZ = 2
-
-# ==============================================================
 # Conversion factors
 # ==============================================================
 
-# Conversion factor
+# Conversion factors
 MM_TO_FT = 1.0 / 304.8
+FT_TO_MM = 304.8
 
 # FLIGHTLAB normalization reference length (mean chord)
 INTFREFLEN_MM = 312.267658
 INTFREFLEN_FT = INTFREFLEN_MM * MM_TO_FT
 
 # ==============================================================
-# Create coordinates
+# Coordinate systems
 # ==============================================================
 
-# Single X-plane
-x_values = np.array([X_PLANE])
+# Pusher propeller hub location in inertial coordinates
+PUSHER_ORIGIN_FT = np.array([
+    -1.2720,
+     0.0,
+    -89.9636
+])
+PUSHER_ORIGIN_MM = PUSHER_ORIGIN_FT * FT_TO_MM
 
-# Uniform YZ-grid
+# Wing location in inertial coordinates
+WING_ORIGIN_MM = np.array([
+     150,
+     0.0,
+    -11.1
+])
+WING_ORIGIN_FT = WING_ORIGIN_MM * MM_TO_FT
+
+# Inertial frame to reference frame
+INERTIAL_ORIGIN_FT = np.array([
+     0.0,
+     0.0,
+    -90,
+])
+INERTIAL_ORIGIN_MM = INERTIAL_ORIGIN_FT * FT_TO_MM
+
+# ==============================================================
+# Point-cloud settings
+# ==============================================================
+
+# Flow-field plane location relative to aircraft origin [mm]
+X_PLANE_BODY = -50.0
+
+# Plane boundaries relative to aircraft origin [mm]
+Y_MIN = -248
+Y_MAX = 698
+
+Z_MIN = -200
+Z_MAX = 200
+
+# Uniform YZ-spacing [mm]
+DY = 1
+DZ = 1
+
+# ==============================================================
+# Create coordinates in aircraft frame
+# ==============================================================
+
+x_values = np.array([X_PLANE_BODY])
+
 y_values = np.arange(
     Y_MIN,
     Y_MAX + 0.5 * DY,
@@ -100,24 +127,22 @@ z_values = np.arange(
 # Create point cloud
 # ==============================================================
 
-# x changes fastest, followed by z and then y
-# Use a structured grid to preserve the required ordering
-xx, zz, yy = np.meshgrid(
-    x_values,
-    z_values,
-    y_values,
-    indexing="ij"
-)
-
-# Transpose to ensure X varies fastest
-points_mm = np.column_stack([
-    xx.transpose(2, 1, 0).ravel(),
-    yy.transpose(2, 1, 0).ravel(),
-    zz.transpose(2, 1, 0).ravel()
+# Generate points on the y-z plane
+points_body_mm = np.array([
+    [x, y, z]
+    for y, z, x in product(
+        y_values,
+        z_values,
+        x_values
+    )
 ])
 
-# Convert interference points from millimetres to feet
-points_ft = points_mm * MM_TO_FT
+# Transform body-frame coordinates into inertial frame
+points_inertial_mm = points_body_mm + PUSHER_ORIGIN_MM
+
+# Convert to feet
+points_body_ft = points_body_mm * MM_TO_FT
+points_inertial_ft = points_inertial_mm * MM_TO_FT
 
 # ==============================================================
 # Write FLIGHTLAB file
@@ -132,10 +157,10 @@ OUTPUT_FILE.parent.mkdir(
 with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
 
     file.write("# Template: intftabxyz\n")
-    file.write("# Desc:     Position of flowfield interference points in CG-frame\n")
+    file.write("# Desc:     Position of flowfield interference points in inertial frame\n")
     file.write("#\n")
     file.write("# INTFREFLEN: Reference length for position normalization\n")
-    file.write("# INTFXYZ:    Normalized flowfield point positions in CG-frame\n")
+    file.write("# INTFXYZ:    Normalized flowfield point positions in interial frame\n")
     file.write("##\n")
     file.write("!T INTFREFLEN\n")
     file.write("!U ft\n")
@@ -144,7 +169,7 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
     file.write("!U nd\n")
 
     # Normalize all coordinates
-    points_nd = points_mm / INTFREFLEN_MM
+    points_nd = points_inertial_mm / INTFREFLEN_MM
 
     # Write interference points
     np.savetxt(
@@ -157,7 +182,7 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
 # Print information
 # ==============================================================
 
-number_of_points = len(points_mm)
+number_of_points = len(points_nd)
 
 print(f"\nCreated: {OUTPUT_FILE}")
 
@@ -181,14 +206,24 @@ print(f"\nReference length: {INTFREFLEN_FT:.9f} ft")
 # ==============================================================
 
 # Load previously aligned STL geometry
-# Coordinates are already in feet and follow FLIGHTLAB convention
+# Coordinates are already in feet
 mesh = trimesh.load(STL_FILE)
 
 if not isinstance(mesh, trimesh.Trimesh):
     mesh = mesh.dump(concatenate=True)
 
-# Mirror STL geometry across the XZ-plane (+Y -> -Y)
-mesh.vertices[:, 1] *= -1
+# Rotate STL 180 degrees around the Y-axis
+rotation_matrix = trimesh.transformations.rotation_matrix(
+   np.pi,
+    [0, 1, 0]
+)
+mesh.apply_transform(rotation_matrix)
+
+# Translate STL from aircraft frame to inertial frame
+mesh.vertices += INERTIAL_ORIGIN_FT
+
+# Align STL
+mesh.vertices += WING_ORIGIN_FT
 
 # ==============================================================
 # Plot STL and interference points
@@ -216,19 +251,7 @@ ax.add_collection3d(mesh_collection)
 # ==============================================================
 
 # Generate structured visualization grid
-xx_plot, yy_plot, zz_plot = np.meshgrid(
-    x_values,
-    y_values,
-    z_values,
-    indexing="ij"
-)
-
-# Flatten structured grid and convert to feet
-plot_points = np.column_stack([
-    xx_plot.ravel(),
-    yy_plot.ravel(),
-    zz_plot.ravel()
-]) * MM_TO_FT
+plot_points = points_inertial_ft
 
 ax.scatter(
     plot_points[:, 0],
@@ -252,15 +275,14 @@ ax.set_zlabel("z [ft]")
 # Plot limits
 # ==============================================================
 
-# Include both STL and complete interference-point domain
 mins = np.minimum(
     mesh.vertices.min(axis=0),
-    points_ft.min(axis=0)
+    points_inertial_ft.min(axis=0)
 )
 
 maxs = np.maximum(
     mesh.vertices.max(axis=0),
-    points_ft.max(axis=0)
+    points_inertial_ft.max(axis=0)
 )
 
 center = (mins + maxs) / 2
@@ -280,8 +302,6 @@ ax.set_zlim(
     center[2] - radius,
     center[2] + radius
 )
-
-ax.invert_xaxis()
 
 ax.set_box_aspect((1, 1, 1))
 
